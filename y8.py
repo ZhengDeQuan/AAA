@@ -33,8 +33,6 @@ csvi中的每一个元素，用逗号间隔的，代表一个特征
 '''
 
 TAG_SET = ["harden", "james", "curry", "durant", "paul","towns","wrestbrook"]
-
-
 table = tf.contrib.lookup.index_table_from_tensor(mapping=TAG_SET, default_value=-1) ## 这里构造了个查找表 ##
 
 vocab_size = 10
@@ -58,6 +56,7 @@ params = {'embedding_initializer': my_initializer}
 #     column_name="education",
 #     bucket_size=10,
 #     combiner='sum',
+#     default_value=-1
 #     dtype=tf.dtypes.int64
 # )
 #
