@@ -140,24 +140,39 @@ else:
     GLOBAL_START_INDEX = GLOBAL_START_INDEX + GLOBAL_BATCH_SIZE
 
 
-embedding_res_list = []
+wide_embedding_res_list = []
+deep_embedding_res_list = []
 for one_example in current_batch_data:
-    feature_embedding_res_list = []
+    wide_feature_embedding_res_list = []
+    deep_feature_embedding_res_list = []
+
     for one_feature,tag in zip(one_example,tags):
-        split_tags = tf.string_split(one_feature, "|")
-        split_tags_values = split_tags.values
+        split_tag = tf.string_split(one_feature, "|")
+        split_tag_values = split_tag.values
+
         one_sparse = tf.SparseTensor(
             indices=split_tags.indices,
-            values=tag.table.lookup(split_tag.values) if tag.tag_name != "hash" else split_tag.values,## 这里给出了不同值通过表查到的index ##
+            values=tag.table.lookup(split_tag.values) if tag.tag_name != "hash" else split_tag.values,  ## 这里给出了不同值通过表查到的index ##
             dense_shape=split_tags.dense_shape
         )
         current_mapping = {tag.tag_name: one_sparse}
         one_feature_embedding_res = tf.feature_column.input_layer(current_mapping, tag.embedding_res)
-        feature_embedding_res_list.append(one_feature_embedding_res)
-    feature_embedding_res = tf.concat(feature_embedding_res_list,axis = -1)
-    feature_embedding_res = tf.reshape(feature_embedding_res,[1,-1])
-    embedding_res_list.append(feature_embedding_res)
-embedded_res = tf.concat(embedding_res_list, axis=0) #一个batch内的所有的样例的embedding表示
+        if tag.wide_or_deep == "wide":
+            wide_feature_embedding_res_list.append(one_feature_embedding_res)
+        else:
+            deep_feature_embedding_res_list.append(one_feature_embedding_res)
+
+    wide_feature_embedding_res = tf.concat(wide_feature_embedding_res_list,axis = -1)
+    deep_feature_embedding_res = tf.concat(deep_feature_embedding_res_list,axis = -1)
+
+    wide_feature_embedding_res = tf.reshape(wide_feature_embedding_res,[1,-1])
+    deep_feature_embedding_res = tf.reshape(deep_feature_embedding_res,[1,-1])
+
+    wide_embedding_res_list.append(wide_feature_embedding_res)
+    deep_embedding_res_list.append(deep_feature_embedding_res)
+
+wide_embedded_res = tf.concat(wide_embedding_res_list, axis=0) #一个batch内的所有的样例的wide side embedding表示
+deep_embedded_res = tf.concat(deep_embedding_res_list, axis=0) #一个batch内的所有的样例的deep side embedding表示
 
 
 
