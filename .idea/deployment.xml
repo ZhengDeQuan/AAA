@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="40" showAutoUploadSettingsWarning="false">
+    <serverData>
+      <paths name="154">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/nemo/zhengquan/tflearn_wide_and_deep" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="40">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/nemo/zhengquan/tflearn_wide_and_deep" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="66">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/nemo/zhengquan/tflearn_wide_and_deep" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="zhengquan.zq@nemo@11.3.131.40@9922@gdfort.uc.cn:2001">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/nemo/zhengquan/tflearn_wide_and_deep" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>

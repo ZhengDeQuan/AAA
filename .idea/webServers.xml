@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="2925e7a0-bb97-4d5b-9bd6-e04406960b0f" name="154" url="http://gdfort.uc.cn">
+        <fileTransfer host="gdfort.uc.cn" port="2001" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+          <option name="port" value="2001" />
+        </fileTransfer>
+      </webServer>
+      <webServer id="d45f5864-622e-471d-9c0e-0e3328dd8532" name="66" url="http://gdfort.uc.cn">
+        <fileTransfer host="gdfort.uc.cn" port="2001" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+          <option name="port" value="2001" />
+        </fileTransfer>
+      </webServer>
+      <webServer id="4a38c21c-9cb8-4fe7-a33b-819d736d5876" name="40" url="http://gdfort.uc.cn">
+        <fileTransfer host="gdfort.uc.cn" port="2001" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+          <option name="port" value="2001" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
