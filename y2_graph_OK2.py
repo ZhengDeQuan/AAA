@@ -19,7 +19,20 @@ wide_inputs = tf.random_normal(shape=[GLOBAL_BATCH_SIZE,GLOBAL_WIDE_DIMENSION], 
 deep_inputs = tf.truncated_normal(shape=[GLOBAL_BATCH_SIZE,GLOBAL_DEEP_DIMENSION], mean=0.0, stddev=1.0, dtype=tf.float32, seed=None, name=None)
 # Y = np.arange(GLOBAL_BATCH_SIZE).reshape(GLOBAL_BATCH_SIZE,1)
 # Y = tf.constant(value=Y, dtype=tf.int32, shape=[GLOBAL_BATCH_SIZE, ])
+X = tf.placeholder(shape=[GLOBAL_BATCH_SIZE,GLOBAL_FEATURE_NUM],dtype=tf.string)
 Y = tf.ones(shape=[GLOBAL_BATCH_SIZE,1],dtype=tf.float32)
+
+
+
+
+
+
+
+
+
+
+
+
 
 with tf.variable_op_scope([wide_inputs], None, "cb_unit", reuse=False) as scope:
     central_bias =tf.Variable(name = 'central_bias',

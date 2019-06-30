@@ -24,8 +24,11 @@ class WideAndDeep(object):
     def load_data(self):
         pass
 
-    def build_graph(self):
+    def load_batch_data(self):
+        pass
 
+    def build_graph(self):
+        pass
 
     def train(self):
         pass
