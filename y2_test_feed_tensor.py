@@ -51,8 +51,7 @@ for i in range(batch_size):
 
         current_mapping = {'zhengquan_test': one_sparse}
         one_feature_embedding_res = tf.feature_column.input_layer(current_mapping, res)
-        print(one_feature_embedding_res)
-        print(tf.shape(one_feature_embedding_res))
+        #[[ 0.08187684,  0.22063671, -0.16549297]]
 
 
 with tf.Session() as sess:

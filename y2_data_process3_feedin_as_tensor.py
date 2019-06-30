@@ -50,6 +50,7 @@ import  numpy as np
 
 
 GLOBAL_BATCH_SIZE = 2
+GLOBAL_FEATURE_NUM = 108
 GLOBAL_START_INDEX = 0
 GLOBAL_TOTAL_EXAMPLE_NUM = 3
 GLOBAL_EPOCH_NUM = 1
@@ -135,6 +136,7 @@ for tag in tags:
 
 
 
+X = tf.placeholder(shape=[GLOBAL_BATCH_SIZE,GLOBAL_FEATURE_NUM])
 
 
 
@@ -146,7 +148,6 @@ for tag in tags:
 
 
 
-def train(current_batch_data):
     wide_embedding_res_list = []
     deep_embedding_res_list = []
     for one_example in current_batch_data:

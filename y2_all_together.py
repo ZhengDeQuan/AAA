@@ -18,16 +18,24 @@ import pickle
 
 class WideAndDeep(object):
     def __init__(self,):
+        pass
 
 
+    def load_data(self):
+        pass
+
+    def build_graph(self):
 
 
     def train(self):
+        pass
 
 
 
     def test(self):
+        pass
 
 
 
-    def load_data(self):
+
+
