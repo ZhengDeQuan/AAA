@@ -129,6 +129,7 @@ class WideAndDeep(object):
         self.train_steps = train_steps
         self.args = args
         self.logger = logging.getLogger("brc")
+        self.tag2valueOneline = tag2valueOneline
         self.tag2value = tag2value
         self.custom_tags = custom_tags
         self.wide_side_node = wide_side_node
@@ -304,6 +305,7 @@ class WideAndDeep(object):
         self.wide_inputs = tf.reshape(wide_inputs, [self.batch_size, self.wide_side_dimension_size])
         self.deep_inputs = tf.reshape(deep_inputs, [self.batch_size, self.deep_side_dimension_size])
 
+
     def _build_graph(self):
         with tf.variable_op_scope([self.wide_inputs], None, "cb_unit", reuse=False) as scope:
             central_bias = tf.Variable(name='central_bias',
@@ -394,35 +396,42 @@ class WideAndDeep(object):
             end_index = min((batch_num + 1) * self.batch_size, data_size)
             yield shufflfed_data[start_index:end_index]
 
-    def train(self,filename):
-        self.X_data, self.Y_data = self.load_data(filename) if filename else self.load_data()
+    def train(self,train_filename="",eval_filename=""):
+        self.X_data, self.Y_data = self.load_data(train_filename) if train_filename else self.load_data()
+        Test_Example_Num = 20
+        self.X_data = self.X_data[:Test_Example_Num]
+        self.Y_data = self.Y_data[:Test_Example_Num]
         self.eval_X_data , self.eval_Y_data = None, None
         train_steps = 0
         history_acc = 0
         history_auc = 0
+        start_t = time.time()
         for epoch in range( self.train_epoch_num ):
             self.logger.info('Training the model for epoch {}'.format(epoch))
+            print('Training the model for epoch {}'.format(str(epoch)))
             batch_data = self.load_batch_data(data = list(zip(self.X_data,self.Y_data)))
             for idx, current_batch_data in enumerate(batch_data):
                 x_feed_in , y_feed_in = zip(*current_batch_data)
                 _,current_loss,current_accuracy = self.sess.run([self.train_op,self.total_loss,self.accuracy],feed_dict={self.X:x_feed_in,self._Y:y_feed_in})
+                print("idx = ",idx," train_steps = ",train_steps, " current loss = ",current_loss," current accuracy = ",current_accuracy)
                 train_steps += 1
                 if train_steps % self.eval_freq == 0:
-                    eval_acc, eval_auc = self.evaluate()
+                    self.logger.info('Time to run {} steps : {} s'.format(train_steps,time.time() - start_t))
+                    start_t = time.time()
+                    eval_acc, eval_auc = self.evaluate(eval_filename) if eval_filename else self.evaluate()
+                    print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f" % (epoch, train_steps, eval_auc, eval_acc))
                     if eval_auc > history_auc or (eval_auc == history_auc and eval_acc > history_acc) :
                         self.save_model(save_dir="/home2/data/zhengquan/WAD/",prefix="auc=%.3f"%(eval_auc))
                         history_auc = eval_auc
                         history_acc = eval_acc
-                        print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f"%(epoch,train_steps,eval_auc,eval_acc))
+                        print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f, get better score"%(epoch,train_steps,eval_auc,eval_acc))
                         self.logger.info("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f"%(epoch,train_steps,eval_auc,eval_acc))
 
 
 
     def evaluate(self,filename=""):
-        if filename:
-            self.eval_X_data, self.eval_Y_data = self.load_data(filename)
         if self.eval_X_data is None:
-            self.eval_X_data , self.eval_Y_data = self.load_data(self.eval_filename)
+            self.eval_X_data , self.eval_Y_data = self.load_data(filename) if filename else self.load_data(self.eval_filename)
         batch_data = self.load_batch_data(data=list(zip(self.eval_X_data, self.eval_Y_data)))
         acc_s = []
         logit_s = []
@@ -440,10 +449,7 @@ class WideAndDeep(object):
         return average_acc , auc
 
     def test(self,filename=""):
-        if filename:
-            self.test_X_data, self.test_Y_data = self.load_data(filename)
-        if self.test_X_data is None:
-            self.test_X_data, self.test_Y_data = self.load_data(self.test_filename)
+        self.test_X_data, self.test_Y_data = self.load_data(filename) if filename else self.load_data(self.test_filename)
         batch_data = self.load_batch_data(data=list(zip(self.test_X_data, self.test_Y_data)))
         acc_s = []
         logit_s = []
@@ -462,6 +468,8 @@ class WideAndDeep(object):
         return average_acc, auc
 
     def save_model(self,save_dir,prefix):
+        temp_path = os.path.join(save_dir,prefix)
+        os.makedirs(temp_path,exist_ok=True)
         save_path = self.saver.save(self.sess, os.path.join(save_dir,prefix,"model.ckpt"))
         self.logger.info('Model saved in {}'.format(save_path))
 
@@ -473,6 +481,14 @@ class WideAndDeep(object):
 if __name__ == "__main__":
     tag2value = json.load(open("tag2value.json", "r", encoding="utf-8"))
     tag2valueOneline = json.load(open('tag2valueOneline.json', "r", encoding="utf-8"))
-    A = WideAndDeep(batch_size=2,tag2value=tag2value,tag2valueOneline=tag2valueOneline)
-    A.train(filename="/home2/data/ttd/zhengquan_test.processed.csv.pkl")
-    A.test(filename="/home2/data/ttd/zhengquan_test.processed.csv.pkl")
+    A = WideAndDeep(batch_size=15,eval_freq=4000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
+                    train_epoch_num=1,
+                    train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",
+                    eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl",
+                    test_filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
+
+    A.train(train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl")
+    print("begin test")
+    test_acc , test_auc = A.test(filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
+    print("test_acc = ",test_acc)
+    print("test_auc = ",test_auc)

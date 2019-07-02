@@ -112,4 +112,9 @@ if __name__ == "__main__":
     json.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.json',"w",encoding="utf-8"),ensure_ascii=False)
     pickle.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.pkl',"wb"))
 
-
+    data = pickle.load(open("eval_ins_add.processed.csv.pkl", "rb"))
+    tmp = data.sample(frac=1).reset_index(drop=True)
+    sub_eval = tmp[0:int(tmp.shape[0] / 2)]
+    sub_test = tmp[int(tmp.shape[0] / 2), tmp.shape[0]]
+    pickle.dump(sub_eval, open("sub_eval_ins_add.processed.csv.pkl", "wb"))
+    pickle.dump(sub_test, open("sub_test_ins_add.processed.csv.pkl", "wb"))
