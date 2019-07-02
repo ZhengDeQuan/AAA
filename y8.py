@@ -8,8 +8,10 @@ import numpy as np
 
 import pandas as pd
 
+# 下面用的key = ["harden", "james", "curry", "durant", "paul","towns", "wrestbrook"],
+
 csv1 = [
-  "harden|james|curry",
+  "aa|nn|james",
   "wrestbrook|harden|durant",
   "paul|towns",
 ]
@@ -32,7 +34,8 @@ csvi中的每一个元素，用逗号间隔的，代表一个特征
 这里模拟的是一个特征有多个取值的时候的情况
 '''
 
-TAG_SET = ["harden", "james", "curry", "durant", "paul","towns","wrestbrook"]
+TAG_SET = ["harden", "james", "curry", "durant", "paul","towns", "wrestbrook"]
+# TAG_SET = ["1","2","3","4","5","6","7","8","9","0"]
 table = tf.contrib.lookup.index_table_from_tensor(mapping=TAG_SET, default_value=-1) ## 这里构造了个查找表 ##
 
 vocab_size = 10
@@ -44,7 +47,7 @@ embedding_matrix = np.random.uniform(-1, 1, size=(vocab_size, embedding_size))
 #         embedding_matrix[i] = v
 
 for i in range(vocab_size):
-    embedding_matrix[i] = np.ones(embedding_size) * i
+    embedding_matrix[i] = np.ones(embedding_size) * i * 2
 
 def my_initializer(shape=None, dtype=tf.float32, partition_info=None):
     assert dtype is tf.float32
@@ -56,8 +59,16 @@ params = {'embedding_initializer': my_initializer}
 #     column_name="education",
 #     bucket_size=10,
 #     combiner='sum',
-#     default_value=-1
+#     default_value=-1,
 #     dtype=tf.dtypes.int64
+# )
+
+# education = tf.contrib.layers.sparse_column_with_hash_bucket(
+#     column_name="education",
+#     hash_bucket_size=10,
+#     combiner='sum',
+#     dtype=tf.dtypes.int64
+#     #dtype=tf.dtypes.string
 # )
 #
 # res_of_edu = tf.contrib.layers.embedding_column(education,
@@ -67,13 +78,19 @@ params = {'embedding_initializer': my_initializer}
 
 education = tf.contrib.layers.sparse_column_with_keys(
     column_name = "education",
-    keys=np.array([0,1,2,3,4,5,6,7,8,9]).astype(np.int64),
+    # keys=np.array([0,1,2,3,4,5,6,7,8,9]).astype(np.int64),
+    keys = ["harden", "james", "curry", "durant", "paul","towns", "wrestbrook"],
     default_value=-1,
     combiner='sum',
-    dtype=tf.dtypes.int64
+    #dtype=tf.dtypes.int64
+    dtype=tf.dtypes.string
 )
-
-res_one_hot_education = tf.contrib.layers.one_hot_column(education)
+#
+# res_one_hot_education = tf.contrib.layers.one_hot_column(education)
+res_using_pretrained_embedding = tf.contrib.layers.embedding_column(education,
+                                                initializer=my_initializer,
+                                                combiner="mean",
+                                                dimension=8)
 
 embedded_tags = []
 for csv in csv_s:
@@ -81,13 +98,17 @@ for csv in csv_s:
     split_tags_values = split_tags.values
     tag = tf.SparseTensor(
       indices=split_tags.indices,
-      values=table.lookup(split_tags.values), ## 这里给出了不同值通过表查到的index ##
+      values=split_tags.values,
+      #values=table.lookup(split_tags.values), ## 这里给出了不同值通过表查到的index ##
       dense_shape=split_tags.dense_shape)
     for_map_education = {'education': tag}
-    #res = tf.feature_column.input_layer(for_map_education,res_of_edu)
-    res = tf.feature_column.input_layer(for_map_education, res_one_hot_education)
+    res = tf.feature_column.input_layer(for_map_education,res_using_pretrained_embedding)
+    # res = tf.feature_column.input_layer(for_map_education,res_of_edu)
+    # res = tf.feature_column.input_layer(for_map_education, res_one_hot_education)
+
     embedded_tag = tf.reshape(res,[1,-1])
     embedded_tags.append(embedded_tag)
+    break
 
 embedded_tags = tf.concat(embedded_tags, axis=0)
 
@@ -101,8 +122,8 @@ embedded_tags = tf.concat(embedded_tags, axis=0)
 
 with tf.Session() as s:
   s.run([tf.global_variables_initializer(), tf.tables_initializer()])
-  print(s.run(embedded_tags))
-  print(s.run(embedded_tag))
+  print(s.run([embedded_tag]))
+  print(s.run([split_tags]))
 
 
 

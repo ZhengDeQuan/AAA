@@ -47,14 +47,14 @@ deep_side = tf.contrib.layers.fully_connected(w_a_d,1,
 deep_side = tf.reshape(deep_side,[-1,1])
 w_a_d_logit = tf.add(deep_side,wide_side)
 w_a_d_logit = tf.add(w_a_d_logit, central_bias, name="wide_with_bias")
-
 w_a_d_output = tf.nn.softmax(w_a_d_logit,dim=-1)
+
 loss = tf.nn.sigmoid_cross_entropy_with_logits(
     labels = Y,
     logits=w_a_d_logit,
     name="loss_function"
 )
-loss_mean = tf.reduce_mean(loss,)
+loss_mean = tf.reduce_mean(loss)
 global_step = tf.Variable(0, trainable=False)  # 定义存储当前迭代训练轮数的变量
 
 # 定义ExponentialMovingAverage类对象

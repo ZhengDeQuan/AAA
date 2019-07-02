@@ -30,9 +30,9 @@ csvi中的每一个元素，用逗号间隔的，代表一个特征
 '''
 
 TAG_SET = ["harden", "james", "curry", "durant", "paul","towns","wrestbrook"]
+TAG_SET = ["1","2","3","4","5","6","7"]
 
-
-table = tf.contrib.lookup.index_table_from_tensor(mapping=TAG_SET, default_value=-1) ## 这里构造了个查找表 ##
+table = tf.contrib.lookup.index_table_from_tensor(mapping=TAG_SET, default_value=0) ## 这里构造了个查找表 ##
 TAG_EMBEDDING_DIM = 3
 embedding_params = tf.Variable(tf.truncated_normal([len(TAG_SET), TAG_EMBEDDING_DIM]))
 
