@@ -36,7 +36,9 @@ def feed_data(batch):
     }
     return feed_dict, len(x_batch)
 
-batch_train = batch_iter(list(zip(x, y)))
+import pdb
+batch_train = batch_iter(list(zip(X_data, Y_data)))
 for i, batch in enumerate(batch_train):
     feed_dict, _ = feed_data(batch)
     print(i,"--->",feed_dict)
+    pdb.set_trace()
