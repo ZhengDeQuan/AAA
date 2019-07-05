@@ -70,33 +70,34 @@ csv3 = [
 ]
 csv_s= [csv1,csv2,csv3]
 #
-# df_data = pickle.load(open("/home2/data/ttd/zhengquan_test.processed.csv.pkl","rb")) #一个DataFrame
-# # import pdb
-# # pdb.set_trace()
-# df_data = df_data.dropna(how="all", axis=0) # 0 对行进行操作，how='any'只要有一个NA就删除这一行，how='all'必须全部是NA才能删除这一行
-# #不能用any过滤，否则过滤完了，1000个只剩3个。
-# df_data['label'] = (df_data['label']).astype(int)
-# df_data = df_data[df_data['label'].isin([0,1])] #只保留label为0或者1的
-#
-# #分离X,Y
-# X_data = df_data.drop(['label'],axis = 1)
-# X_data = X_data.applymap(str)
-# X_data = X_data.values.astype(np.str)
-# Y_data = df_data['label'].values.astype(np.int32)
-#
-#
-#
-#
-#
-# data_size=len(X_data)
-# indices=np.random.permutation(np.arange(data_size))
-# shufflfed_X=X_data[indices]
-# shufflfed_Y=Y_data[indices]
-# X_batch_data = shufflfed_X[0:GLOBAL_BATCH_SIZE]
-# # input_data = csv_s
-# # input_data = X_batch_data
-# input_data = X_batch_data
+df_data = pickle.load(open("/home2/data/ttd/zhengquan_test.processed.csv.pkl","rb")) #一个DataFrame
+# import pdb
+# pdb.set_trace()
+df_data = df_data.dropna(how="all", axis=0) # 0 对行进行操作，how='any'只要有一个NA就删除这一行，how='all'必须全部是NA才能删除这一行
+#不能用any过滤，否则过滤完了，1000个只剩3个。
+df_data['label'] = (df_data['label']).astype(int)
+df_data = df_data[df_data['label'].isin([0,1])] #只保留label为0或者1的
 
+#分离X,Y
+X_data = df_data.drop(['label'],axis = 1)
+X_data = X_data.applymap(str)
+# X_data = X_data.values.astype(np.str)
+X_data = X_data.values
+Y_data = df_data['label'].values.astype(np.int32)
+data_size=len(X_data)
+indices=np.random.permutation(np.arange(data_size))
+import pdb
+pdb.set_trace()
+print(type(X_data))
+shufflfed_X=X_data[indices]
+shufflfed_Y=Y_data[indices]
+X_batch_data = shufflfed_X[0:GLOBAL_BATCH_SIZE]
+# input_data = csv_s
+# input_data = X_batch_data
+input_data = X_batch_data
+
+
+exit(5678)
 
 
 tags = []

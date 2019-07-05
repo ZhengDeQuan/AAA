@@ -101,20 +101,21 @@ if __name__ == "__main__":
         get_values_for_each_tag(filename,Outer_Dict_tag2values)
         cal_valueKindNum_for_each_tag_each_line(filename,Outer_Dict_tag2valuesOneline)
 
-
-
-
+    sorted_tuple = sorted(Outer_Dict_tag2values.items(), key=lambda z: z[0])
+    Outer_Dict_tag2values = dict(sorted_tuple)
     for key in Outer_Dict_tag2values:
         Outer_Dict_tag2values[key] = list(Outer_Dict_tag2values[key])
     json.dump(Outer_Dict_tag2values,open('tag2value.json',"w",encoding="utf-8"),ensure_ascii=False)
     pickle.dump(Outer_Dict_tag2values , open("tag2value.pkl","wb"))
 
+    sorted_tuple = sorted(Outer_Dict_tag2valuesOneline.items(), key=lambda z: z[0])
+    Outer_Dict_tag2valuesOneline = dict(sorted_tuple)
     json.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.json',"w",encoding="utf-8"),ensure_ascii=False)
     pickle.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.pkl',"wb"))
 
-    data = pickle.load(open("eval_ins_add.processed.csv.pkl", "rb"))
-    tmp = data.sample(frac=1).reset_index(drop=True)
-    sub_eval = tmp[0:int(tmp.shape[0] / 2)]
-    sub_test = tmp[int(tmp.shape[0] / 2), tmp.shape[0]]
-    pickle.dump(sub_eval, open("sub_eval_ins_add.processed.csv.pkl", "wb"))
-    pickle.dump(sub_test, open("sub_test_ins_add.processed.csv.pkl", "wb"))
+    # data = pickle.load(open("eval_ins_add.processed.csv.pkl", "rb"))
+    # tmp = data.sample(frac=1).reset_index(drop=True)
+    # sub_eval = tmp[0:int(tmp.shape[0] / 2)]
+    # sub_test = tmp[int(tmp.shape[0] / 2), tmp.shape[0]]
+    # pickle.dump(sub_eval, open("sub_eval_ins_add.processed.csv.pkl", "wb"))
+    # pickle.dump(sub_test, open("sub_test_ins_add.processed.csv.pkl", "wb"))

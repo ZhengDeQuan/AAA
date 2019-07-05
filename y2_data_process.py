@@ -148,7 +148,7 @@ for one_example in current_batch_data:
         split_tags_values = split_tags.values
         one_sparse = tf.SparseTensor(
             indices=split_tags.indices,
-            values=tag.table.lookup(split_tag.values) if tag.tag_name != "hash" else split_tag.values,## 这里给出了不同值通过表查到的index ##
+            values=tag.table.lookup(split_tags.values) if tag.tag_name != "hash" else split_tags.values,## 这里给出了不同值通过表查到的index ##
             dense_shape=split_tags.dense_shape
         )
         current_mapping = {tag.tag_name: one_sparse}

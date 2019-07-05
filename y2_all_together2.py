@@ -6,6 +6,7 @@ import pickle
 import logging
 import time
 import os
+from custom_tag_config import custom_tags
 
 
 def compute_auc(labels, pred):
@@ -190,9 +191,14 @@ class WideAndDeep(object):
             if tag.tag_name in tags_to_repair:
                 tag.kind = "custom"
                 tag.wide_or_deep_side = "deep"
+                tag.tag_set = tags_to_repair[tag.tag_name]['vocab_fun'](tag.tag_set)
+                #注意，一定要先调用上面这句话，再调用下面两句话。
                 tag.embedding_size = tags_to_repair[tag.tag_name]['embedding_size']
                 tag.vocab_size = tags_to_repair[tag.tag_name]['vocab_size']
-                # tag.tag_set = tags_to_repair[tag.tag_name]['vocab_fun'](tag.tag_set)
+                print("tag.vocab_size = ",tag.vocab_size)
+                print("tag.embedding_size = " ,tag.embedding_size)
+                # import pdb
+                # pdb.set_trace()
                 table = tf.contrib.lookup.index_table_from_tensor(mapping=tag.tag_set,
                                                                   default_value=-1)  ## 这里构造了个查找表 ##
                 tag.table = table
@@ -252,59 +258,69 @@ class WideAndDeep(object):
         self.tags = tags
 
     def _realize_mappings(self):
-        exp_X = tf.expand_dims(self.X, axis=-1)
-        uns_X = tf.unstack(exp_X, axis=0)
-        batch_embedding_res = []
-        for one_example in uns_X:
-            wide_mappings = {}
-            wide_tensors = []
-            deep_mappings = {}
-            deep_tensors = []
-            features = tf.unstack(one_example, axis=0)
-            for one_feature, tag in zip(features, self.tags):
-                if tag.wide_or_deep_side != "wide":
-                    continue
-                split_tag = tf.string_split(one_feature, "|")
-                one_sparse = tf.SparseTensor(
-                    indices=split_tag.indices,
-                    values=tag.table.lookup(split_tag.values) if tag.tag_name == "custom" else split_tag.values,
-                    ## 这里给出了不同值通过表查到的index ##
-                    dense_shape=split_tag.dense_shape
-                )
+        with tf.device('/cpu:0'), tf.variable_scope('word_embedding'):
+            exp_X = tf.expand_dims(self.X, axis=-1)
+            uns_X = tf.unstack(exp_X, axis=0)
+            batch_embedding_res = []
+            for one_example in uns_X:
+                wide_mappings = {}
+                wide_tensors = []
+                deep_mappings = {}
+                deep_tensors = []
+                features = tf.unstack(one_example, axis=0)
+                for one_feature, tag in zip(features, self.tags):
+                    if tag.wide_or_deep_side != "wide":
+                        continue
+                    split_tag = tf.string_split(one_feature, "|")
+                    one_sparse = tf.SparseTensor(
+                        indices=split_tag.indices,
+                        values=tag.table.lookup(split_tag.values) if tag.tag_name == "custom" else split_tag.values,
+                        ## 这里给出了不同值通过表查到的index ##
+                        dense_shape=split_tag.dense_shape
+                    )
 
-                wide_mappings[tag.tag_name] = one_sparse
-                wide_tensors.append(tag.embedding_res)
+                    wide_mappings[tag.tag_name] = one_sparse
+                    wide_tensors.append(tag.embedding_res)
 
-            for one_feature, tag in zip(features, self.tags):
-                if tag.wide_or_deep_side == "wide":
-                    continue
-                split_tag = tf.string_split(one_feature, "|")
-                one_sparse = tf.SparseTensor(
-                    indices=split_tag.indices,
-                    values=tag.table.lookup(split_tag.values) if tag.tag_name == "custom" else split_tag.values,
-                    ## 这里给出了不同值通过表查到的index ##
-                    dense_shape=split_tag.dense_shape
-                )
+                for one_feature, tag in zip(features, self.tags):
+                    if tag.wide_or_deep_side == "wide":
+                        continue
+                    split_tag = tf.string_split(one_feature, "|")
+                    one_sparse = tf.SparseTensor(
+                        indices=split_tag.indices,
+                        values=tag.table.lookup(split_tag.values) if tag.tag_name == "custom" else split_tag.values,
+                        ## 这里给出了不同值通过表查到的index ##
+                        dense_shape=split_tag.dense_shape
+                    )
 
-                deep_mappings[tag.tag_name] = one_sparse
-                deep_tensors.append(tag.embedding_res)
-            mappings = {}
-            tensors = []
-            for key in wide_mappings:
-                mappings[key] = wide_mappings[key]
-            for key in deep_mappings:
-                mappings[key] = deep_mappings[key]
-            tensors = wide_tensors + deep_tensors
-            wide_and_deep_embedding_res = tf.feature_column.input_layer(mappings, tensors)
-            batch_embedding_res.append(wide_and_deep_embedding_res)
+                    deep_mappings[tag.tag_name] = one_sparse
+                    deep_tensors.append(tag.embedding_res)
 
-        batch_embedding_res = tf.concat(batch_embedding_res, axis=0)
-        # wide_side_embedding , deep_side_embedding = tf.split(batch_embedding_res,[wide_side_dimension_size,deep_side_dimension_size],axis = 1)
-        wide_inputs, deep_inputs = tf.split(batch_embedding_res, [self.wide_side_dimension_size, self.deep_side_dimension_size],1)
 
-        self.wide_inputs = tf.reshape(wide_inputs, [self.batch_size, self.wide_side_dimension_size])
-        self.deep_inputs = tf.reshape(deep_inputs, [self.batch_size, self.deep_side_dimension_size])
+                mappings = {}
+                tensors = []
+                for key in wide_mappings:
+                    mappings[key] = wide_mappings[key]
+                for key in deep_mappings:
+                    mappings[key] = deep_mappings[key]
+                tensors = wide_tensors + deep_tensors
+                wide_and_deep_embedding_res = tf.feature_column.input_layer(mappings, tensors)
+                batch_embedding_res.append(wide_and_deep_embedding_res)
 
+            batch_embedding_res = tf.concat(batch_embedding_res, axis=0)
+            # wide_side_embedding , deep_side_embedding = tf.split(batch_embedding_res,[wide_side_dimension_size,deep_side_dimension_size],axis = 1)
+            wide_inputs, deep_inputs = tf.split(batch_embedding_res, [self.wide_side_dimension_size, self.deep_side_dimension_size],1)
+
+            self.wide_inputs = tf.reshape(wide_inputs, [self.batch_size, self.wide_side_dimension_size])
+            self.deep_inputs = tf.reshape(deep_inputs, [self.batch_size, self.deep_side_dimension_size])
+            print("wide_inputs.shape = ",self.wide_inputs.shape)
+            print("deep_inputs.shape = ",self.deep_inputs.shape)
+            '''
+            wide_inputs.shape =  (10, 389)
+            deep_inputs.shape =  (10, 2038)
+            '''
+            import pdb
+            pdb.set_trace()
 
     def _build_graph(self):
         with tf.variable_op_scope([self.wide_inputs], None, "cb_unit", reuse=False) as scope:
@@ -365,8 +381,15 @@ class WideAndDeep(object):
         self.learning_rate = tf.train.exponential_decay(self.learning_rate_base, self.global_step,
                                            2000000 / self.batch_size, self.learning_rate_decay)
         # 定义梯度下降操作op，global_step参数可实现自加1运算
-        self.train_step = tf.train.GradientDescentOptimizer(self.learning_rate) \
-            .minimize(self.total_loss, global_step=self.global_step)
+        #self.train_step = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.total_loss, global_step=self.global_step)
+        '''
+        梯度爆炸要clip
+        '''
+        self.train_opt = tf.train.GradientDescentOptimizer(self.learning_rate)
+        gradients = tf.gradients(self.total_loss, trainable_vars)
+        clipped_gradients, norm = tf.clip_by_global_norm(gradients, 10)
+        self.train_step = self.train_opt.apply_gradients(zip(clipped_gradients,trainable_vars))
+
         # 组合两个操作op
         self.train_op = tf.group(self.train_step, self.variables_averages_op)
 
@@ -428,7 +451,7 @@ class WideAndDeep(object):
                     continue
                 x_feed_in , y_feed_in = zip(*current_batch_data)
                 _,current_loss,current_accuracy = self.sess.run([self.train_op,self.total_loss,self.accuracy],feed_dict={self.X:x_feed_in,self._Y:y_feed_in})
-                print("idx = ",idx," train_steps = ",train_steps, " current loss = ",current_loss," current accuracy = ",current_accuracy)
+                print(time.strftime("%Y-%m-%d %H:%M:%S ", time.localtime()),"idx = ",idx," train_steps = ",train_steps, " current loss = ",current_loss," current accuracy = ",current_accuracy)
                 train_steps += 1
                 if train_steps % self.eval_freq == 0:
                     self.logger.info('Time to run {} steps : {} s'.format(train_steps,time.time() - start_t))
@@ -536,7 +559,7 @@ class WideAndDeep(object):
                 x_feed_in, y_feed_in = self.X_data[current_batch_data_indices],self.Y_data[current_batch_data_indices]
                 _, current_loss, current_accuracy = self.sess.run([self.train_op, self.total_loss, self.accuracy],
                                                                   feed_dict={self.X: x_feed_in, self._Y: y_feed_in})
-                print(time.strftime("%Y-%m-%d %H:%M:%S ", time.localtime()),"idx = ", idx, " train_steps = ", train_steps, " current loss = ", current_loss,
+                print("idx = ", idx, " train_steps = ", train_steps, " current loss = ", current_loss,
                       " current accuracy = ", current_accuracy)
                 train_steps += 1
                 if train_steps % self.eval_freq == 0:
@@ -614,18 +637,18 @@ class WideAndDeep(object):
 if __name__ == "__main__":
     tag2value = json.load(open("tag2value.json", "r", encoding="utf-8"))
     tag2valueOneline = json.load(open('tag2valueOneline.json', "r", encoding="utf-8"))
-    A = WideAndDeep(batch_size=15,eval_freq=6000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
+    A = WideAndDeep(batch_size=10,eval_freq=6000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = custom_tags,
                     train_epoch_num=1,
                     train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",
-                    eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl",
-                    test_filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
+                    eval_filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl",
+                    test_filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
 
-    # A.train(train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl")
+    A.train(train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl")
     # print("begin test")
     # test_acc , test_auc = A.test(filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
 
-    A.restore_model(save_dir="/home2/data/zhengquan/WAD/",prefix="auc=0.693")
-    test_acc , test_auc = A.test(filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
+    # A.restore_model(save_dir="/home2/data/zhengquan/WAD/",prefix="auc=0.693")
+    # test_acc , test_auc = A.test(filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
 
-    print("test_acc = ",test_acc)
-    print("test_auc = ",test_auc)
+    # print("test_acc = ",test_acc)
+    # print("test_auc = ",test_auc)

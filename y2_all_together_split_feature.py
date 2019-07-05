@@ -252,55 +252,52 @@ class WideAndDeep(object):
         self.tags = tags
 
     def _realize_mappings(self):
-        exp_X = tf.expand_dims(self.X, axis=-1)
-        uns_X = tf.unstack(exp_X, axis=0)
-        batch_embedding_res = []
-        for one_example in uns_X:
-            wide_mappings = {}
-            wide_tensors = []
-            deep_mappings = {}
-            deep_tensors = []
-            features = tf.unstack(one_example, axis=0)
-            for one_feature, tag in zip(features, self.tags):
-                if tag.wide_or_deep_side != "wide":
-                    continue
-                split_tag = tf.string_split(one_feature, "|")
-                one_sparse = tf.SparseTensor(
-                    indices=split_tag.indices,
-                    values=tag.table.lookup(split_tag.values) if tag.tag_name == "custom" else split_tag.values,
-                    ## 这里给出了不同值通过表查到的index ##
-                    dense_shape=split_tag.dense_shape
-                )
+        # exp_X = tf.expand_dims(self.X, axis=-1)
+        features = tf.unstack(self.X, axis=1) #List with Feature_NUM ele each with a shape of [batch_size]
+        print("len(features) = ",len(features))
+        print("shape = ",features[0].shape)
+        wide_mappings = {}
+        wide_tensors = []
+        deep_mappings = {}
+        deep_tensors = []
+        for one_feature, tag in zip(features, self.tags):
+            if tag.wide_or_deep_side != "wide":
+                continue
+            split_tag = tf.string_split(one_feature, "|")
+            one_sparse = tf.SparseTensor(
+                indices=split_tag.indices,
+                values=tag.table.lookup(split_tag.values) if tag.tag_name == "custom" else split_tag.values,
+                ## 这里给出了不同值通过表查到的index ##
+                dense_shape=split_tag.dense_shape
+            )
+            wide_mappings[tag.tag_name] = one_sparse
+            wide_tensors.append(tag.embedding_res)
 
-                wide_mappings[tag.tag_name] = one_sparse
-                wide_tensors.append(tag.embedding_res)
 
-            for one_feature, tag in zip(features, self.tags):
-                if tag.wide_or_deep_side == "wide":
-                    continue
-                split_tag = tf.string_split(one_feature, "|")
-                one_sparse = tf.SparseTensor(
-                    indices=split_tag.indices,
-                    values=tag.table.lookup(split_tag.values) if tag.tag_name == "custom" else split_tag.values,
-                    ## 这里给出了不同值通过表查到的index ##
-                    dense_shape=split_tag.dense_shape
-                )
+        for one_feature, tag in zip(features, self.tags):
+            if tag.wide_or_deep_side == "wide":
+                continue
+            split_tag = tf.string_split(one_feature, "|")
+            one_sparse = tf.SparseTensor(
+                indices=split_tag.indices,
+                values=tag.table.lookup(split_tag.values) if tag.tag_name == "custom" else split_tag.values,
+                ## 这里给出了不同值通过表查到的index ##
+                dense_shape=split_tag.dense_shape
+            )
+            deep_mappings[tag.tag_name] = one_sparse
+            deep_tensors.append(tag.embedding_res)
 
-                deep_mappings[tag.tag_name] = one_sparse
-                deep_tensors.append(tag.embedding_res)
-            mappings = {}
-            tensors = []
-            for key in wide_mappings:
-                mappings[key] = wide_mappings[key]
-            for key in deep_mappings:
-                mappings[key] = deep_mappings[key]
-            tensors = wide_tensors + deep_tensors
-            wide_and_deep_embedding_res = tf.feature_column.input_layer(mappings, tensors)
-            batch_embedding_res.append(wide_and_deep_embedding_res)
 
-        batch_embedding_res = tf.concat(batch_embedding_res, axis=0)
-        # wide_side_embedding , deep_side_embedding = tf.split(batch_embedding_res,[wide_side_dimension_size,deep_side_dimension_size],axis = 1)
-        wide_inputs, deep_inputs = tf.split(batch_embedding_res, [self.wide_side_dimension_size, self.deep_side_dimension_size],1)
+        mappings = {}
+        tensors = []
+        for key in wide_mappings:
+            mappings[key] = wide_mappings[key]
+        for key in deep_mappings:
+            mappings[key] = deep_mappings[key]
+        tensors = wide_tensors + deep_tensors
+        wide_and_deep_embedding_res = tf.feature_column.input_layer(mappings, tensors)
+        print("res.shape = ",wide_and_deep_embedding_res.shape)
+        wide_inputs, deep_inputs = tf.split(wide_and_deep_embedding_res, [self.wide_side_dimension_size, self.deep_side_dimension_size],1)
 
         self.wide_inputs = tf.reshape(wide_inputs, [self.batch_size, self.wide_side_dimension_size])
         self.deep_inputs = tf.reshape(deep_inputs, [self.batch_size, self.deep_side_dimension_size])
@@ -444,7 +441,20 @@ class WideAndDeep(object):
                         history_acc = eval_acc
                         print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f, get better score"%(epoch,train_steps,eval_auc,eval_acc))
                         self.logger.info("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f"%(epoch,train_steps,eval_auc,eval_acc))
-                    return
+
+        eval_acc, eval_auc = self.evaluate(eval_filename) if eval_filename else self.evaluate()
+        print('Time to run {} steps : {} s'.format(train_steps, time.time() - start_t))
+        start_t = time.time()
+        print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f" % (epoch, train_steps, eval_auc, eval_acc))
+        if eval_auc > history_auc or (eval_auc == history_auc and eval_acc > history_acc):
+            self.save_model(save_dir="/home2/data/zhengquan/WAD/", prefix="auc=%.3f" % (eval_auc))
+            history_auc = eval_auc
+            history_acc = eval_acc
+            print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f, get better score" % (
+            epoch, train_steps, eval_auc, eval_acc))
+            self.logger.info(
+                "epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f" % (epoch, train_steps, eval_auc, eval_acc))
+
 
     def evaluate(self,filename=""):
         if self.eval_X_data is None:
@@ -614,18 +624,18 @@ class WideAndDeep(object):
 if __name__ == "__main__":
     tag2value = json.load(open("tag2value.json", "r", encoding="utf-8"))
     tag2valueOneline = json.load(open('tag2valueOneline.json', "r", encoding="utf-8"))
-    A = WideAndDeep(batch_size=15,eval_freq=6000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
+    A = WideAndDeep(batch_size=20,eval_freq=5000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
                     train_epoch_num=1,
                     train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",
                     eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl",
                     test_filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
 
-    # A.train(train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl")
+    A.train(train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
     # print("begin test")
     # test_acc , test_auc = A.test(filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
 
-    A.restore_model(save_dir="/home2/data/zhengquan/WAD/",prefix="auc=0.693")
-    test_acc , test_auc = A.test(filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
-
-    print("test_acc = ",test_acc)
-    print("test_auc = ",test_auc)
+    # A.restore_model(save_dir="/home2/data/zhengquan/WAD/",prefix="auc=0.693")
+    # test_acc , test_auc = A.test(filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
+    #
+    # print("test_acc = ",test_acc)
+    # print("test_auc = ",test_auc)

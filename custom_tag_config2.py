@@ -12,6 +12,9 @@ embedding_size = 768
 embedding_matrix = np.random.uniform(-1, 1, size=(vocab_size, embedding_size))
 
 
+embedding_matrix_placeholder = tf.placeholder(np.float32)
+embedding_matrix_variable = tf.Variable(embedding_matrix_placeholder)
+
 # for w, i in word_index.items():
 #     v = embeddings.get(w)
 #     if v is not None and i < vocab_size:
@@ -22,7 +25,8 @@ embedding_matrix = np.random.uniform(-1, 1, size=(vocab_size, embedding_size))
 
 def my_initializer1(shape=None, dtype=tf.float32, partition_info=None):
     assert dtype is tf.float32
-    return embedding_matrix
+    return embedding_matrix_variable
+    # return embedding_matrix_variable
     # W = tf.constant(embedding_matrix, name="W")
     # W = tf.Variable(embedding_matrix,trainable=False, name="W",dtype=tf.float64)
     # return W
@@ -52,11 +56,10 @@ def tagset2vocab(tagset):
             vector = pretrained_embedding_dict[word]["vector"]
             embedding_matrix[idx] = vector
     pickle.dump(embedding_matrix,open("embedding_matrix.pkl","wb"))
+    global embedding_matrix_variable, embedding_matrix_placeholder
+    embedding_matrix_placeholder = tf.placeholder(shape=[vocab_size,embedding_size])
+    embedding_matrix_variable = tf.Variable(embedding_matrix_placeholder)
     return vocab
-
-def fun1(message):
-    print(message)
-    return np.random.uniform(-1, 1, size=(vocab_size, embedding_size))
 
 
 custom_tags = [

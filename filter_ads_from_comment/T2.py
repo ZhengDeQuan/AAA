@@ -1,13 +1,13 @@
 '''
-from huangbo 过滤评论中的广告的脚本
+删除广告，表情，过短的评论
+不需要进行情感分析
 '''
 # -*- coding: utf-8 -*-
 import sys
 import math
-import nltk
-import math
 import re
 import langid
+# import nltk
 # nltk.download('movie_reviews')
 # nltk.download('punkt')
 # nltk.download('averaged_perceptron_tagger')
@@ -20,7 +20,6 @@ fail = defaultdict(int)
 
 
 #定义一些全局变量用来过滤
-#理恩的方法应该是要找到这些关键字，还是得看看理恩的代码。
 delete_list = [
     ["job", "money"],
     ["job", "month"],
@@ -59,7 +58,6 @@ delete_list = [
     ["कमायें", "रुपया"],
     ["कमायें", "हज़ार ाशि"],
     ["रेफर", "कोड"]]
-
 # ["डाउनलोड", "कमायें"],  # 下载，赚
 # ["कमाई"],  # 收益
 # ["कमायें", "रुपया"],  # 赚，卢比
@@ -93,12 +91,21 @@ def cal_emo(comment):
         res[item]+=1
     return res
 
+#删除所有的表情,并且长长度进行判断
+def delete_emo(comment):
+    res=''
+    comment = re.sub(u"\\(.*?\\)|\\{.*?}|\\[.*?]", "", comment)
+    for item in comment:
+        if ord(item) > 120000:
+            continue
+        res+=item
+    return res
+
 # 对每条评论数据进行处理，提取信息
 def comment_process(comment):
 
     #返回值
     res = defaultdict(int)
-    nltk_classifier = nltk_sentiment()
 
     #过滤规则
     filter_res=filter(comment)
@@ -172,112 +179,3 @@ def main_process():
         print(key+':'+str(value))
     print('英语所占的比例：' + str(langage['en'] / sum(langage.values())))
     print('语言总数：'+str(sum(langage.values())))
-
-#给原始数据追加上新的特征
-def cal_new_feature():
-    #保存每个video id的新信息 聚类ID，machine_tag,
-    # file_machine_tag=open('machine_tags')
-    # machine_dic={}
-    # for line in file_machine_tag.readlines():
-    #     item=line.strip('\n').split('\t')
-    #     if len(item)==2:
-    #         machine_dic[item[0]]=item[1]
-
-    #评论数据
-    file_comment=open('comment_res.dic') #anation added by zhengquan,  这个文件是main_process()函数中产生的。
-    comment_dic=json.loads(file_comment.readline().strip('\n'))
-
-    # #聚类ID
-    # cluster_dic={}
-    # cluster_file=open('cluster_res.txt')
-    # for line in cluster_file.readlines():
-    #     item=line.strip('\n').split(' ')
-    #     cluster_dic[item[0]]='clustre-'+str(item[2])
-
-    #开始写入特征
-    train_source_file = open('eval_ins')
-    train_res_file=open('eval_ins_add','w')
-    for line in train_source_file.readlines():
-        line=line.strip('\n')
-        add_list=[]
-        feature_list=line.split('\t')[2].split(' ')#added by zhengquan 第0列是1，第1列是lable（0/1），第2列以及之后是feature_value:feature_id
-        for feature in feature_list:
-            feature_item=feature.split(':')
-            value=feature_item[0]
-            id=feature_item[1]
-            if id =='7':
-                # if value in machine_dic:
-                #     add_list.append(str(hash(machine_dic[value]))+':409')
-                # if value in cluster_dic:
-                #     add_list.append(str(hash(cluster_dic[value])) + ':410')
-                if value in comment_dic:
-                    value_dic=comment_dic[value]
-                    if 'total_num' in value_dic:
-                        add_list.append(str(hash(str(value_dic['total_num'])+'-total_num'))+':411')
-                    if 'pos_num' in value_dic:
-                        add_list.append(str(hash(str(value_dic['pos_num']) + '-pos_num+'))+':412')
-                    if 'pos_value' in value_dic:
-                        add_list.append(str(hash(str(value_dic['pos_value'])+ '-pos_value'))+':413')
-                    if 'neg_num' in value_dic:
-                        add_list.append(str(hash(str(value_dic['neg_num']) + '-neg_num'))+':414')
-                    if 'neg_value' in value_dic:
-                        add_list.append(str(hash(str(value_dic['neg_value']) + '-neg_value'))+':415')
-                    for key in [item for item in value_dic.keys() if item not in ['pos_value','pos_num','neg_num','neg_value','total_num']]:
-                        add_list.append(str(hash(str(comment_dic[value][key])+'-'+key))+':416')
-                if len(add_list)>0:
-                    print(add_list)
-                    train_res_file.write(line+' '+' '.join(add_list)+'\n')
-                break
-
-
-
-#连续值进行离散化,num表示第几种离散化
-#1：概率值  2：total_num
-def discretization(value,num):
-    if num==1:
-        value=value*100-49
-    try:
-        return (int)((math.log(value)/math.log(2))+0.49)
-    except Exception:
-        print('error!'+':'+str(value))
-    #return value
-
-#删除所有的表情,并且长长度进行判断
-def delete_emo(comment):
-    res=''
-    comment = re.sub(u"\\(.*?\\)|\\{.*?}|\\[.*?]", "", comment)
-    for item in comment:
-        if ord(item) > 120000:
-            continue
-        res+=item
-    return res
-
-#获取情感模型
-def nltk_sentiment():
-    import nltk
-    #nltk.download('vader_lexicon')
-    from nltk.sentiment.vader import SentimentIntensityAnalyzer
-    sid = SentimentIntensityAnalyzer()
-    return sid
-    # for sen in view:
-    #     print(sen)
-    #     ss = sid.polarity_scores(sen)
-    #     for k in ss:
-    #         print('{0}:{1},'.format(k, ss[k]), end='')
-
-
-
-def get_emoji_list():
-    data=open('emoji_list.txt')
-    res=[]
-    for line in data.readlines():
-        tmp=line[line.index('[')+1:line.index(']')]
-        res.append(tmp)
-    print('表情包数量：'+str(len(res)))
-    return res
-
-
-
-if __name__ == "__main__":
-    main_process()
-    print('done')
