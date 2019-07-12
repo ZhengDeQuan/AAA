@@ -6,7 +6,8 @@ import pickle
 import logging
 import time
 import os
-
+import sklearn
+from sklearn import metrics
 
 def compute_auc(labels, pred):
     if len(labels) != len(pred):
@@ -27,7 +28,7 @@ def compute_auc(labels, pred):
             neg += 1
         if last_pre != pred[sorted_pred[i]]:  # 当前的预测概率值与前一个值不相同
             # 对于预测值相等的样本rank需要取平均值，并且对rank求和
-            auc += pos_count * pre_sum / count
+            auc += pos_count * pre_sum / count #这里报了除零的错误
             count = 1
             pre_sum = i + 1  # 更新为当前的rank
             last_pre = pred[sorted_pred[i]]
@@ -105,8 +106,8 @@ class Tag(object):
 class WideAndDeep(object):
     def __init__(self,
                  batch_size = 2,
-                 feature_num = 108,
-                 train_epoch_num = 2,
+                 feature_num = 2,
+                 train_epoch_num = 1,
                  train_steps = 1000,
                  tag2value = None,
                  tag2valueOneline = None,
@@ -116,13 +117,14 @@ class WideAndDeep(object):
                  # deep_side_nodes=[1024,512,256],
                  eval_freq = 1000,#每隔1000个step，evaluate一次
                  moving_average_decay = 0.99,# 滑动平均的衰减系数
-                 learning_rate_base = 0.1,# 基学习率
+                 learning_rate_base = 1e-4,# 基学习率
                  learning_rate_decay = 0.99,# 学习率的衰减率
                  total_example_num = 2000000,
                  train_filename = "",
                  eval_filename = "",
                  test_filename = "",
                  features_to_exclude = [],
+                 features_to_keep = [],
                  args=None
                  ):
 
@@ -151,6 +153,16 @@ class WideAndDeep(object):
         self.test_filename = test_filename
 
         self.features_to_exclude = features_to_exclude
+        self.features_to_keep = features_to_keep
+
+        self.tag2value = {}
+        self.tag2valueOneline = {}
+        if self.features_to_keep:
+            for key in self.features_to_keep:
+                if key in tag2value:
+                    self.tag2value[key] = tag2value[key]
+                if key in tag2valueOneline:
+                    self.tag2valueOneline[key] = tag2valueOneline[key]
 
         start_t = time.time()
         self.sess = tf.Session()
@@ -165,8 +177,8 @@ class WideAndDeep(object):
 
 
     def _setup_placeholder(self):
-        self.X = tf.placeholder(shape=[self.batch_size,self.feature_num],dtype=tf.string)
-        self._Y = tf.placeholder(shape=[self.batch_size,],dtype=tf.float32)
+        self.X = tf.placeholder(shape=[None,self.feature_num],dtype=tf.string)
+        self._Y = tf.placeholder(shape=[None,],dtype=tf.float32)
         self.Y = tf.expand_dims(self._Y,axis=-1)
 
     def _setup_mappings(self):
@@ -306,53 +318,70 @@ class WideAndDeep(object):
         print("res.shape = ",wide_and_deep_embedding_res.shape)
         wide_inputs, deep_inputs = tf.split(wide_and_deep_embedding_res, [self.wide_side_dimension_size, self.deep_side_dimension_size],1)
 
-        self.wide_inputs = tf.reshape(wide_inputs, [self.batch_size, self.wide_side_dimension_size])
-        self.deep_inputs = tf.reshape(deep_inputs, [self.batch_size, self.deep_side_dimension_size])
-
+        self.wide_inputs = tf.reshape(wide_inputs, [-1, self.wide_side_dimension_size])
+        self.deep_inputs = tf.reshape(deep_inputs, [-1, self.deep_side_dimension_size])
 
     def _build_graph(self):
-        with tf.variable_op_scope([self.wide_inputs], None, "cb_unit", reuse=False) as scope:
-            central_bias = tf.Variable(name='central_bias',
-                                       initial_value=tf.random_normal(shape=[self.batch_size, 1], mean=0, stddev=1),
-                                       trainable=True)
+        central_bias = tf.Variable(name='central_bias',
+                                   initial_value=tf.random_normal(shape=[1], mean=0, stddev=0.0000000001),
+                                   trainable=True)
+        with tf.variable_scope("WideNet"):
+            wide_side = tf.contrib.layers.fully_connected(inputs=self.wide_inputs,
+                                                          num_outputs=1,
+                                                          activation_fn=None,
+                                                          biases_initializer=None,
+                                                          weights_regularizer=tf.contrib.layers.l1_regularizer(0.1)
+                                                          )
 
-        wide_side = tf.contrib.layers.fully_connected(inputs=self.wide_inputs,
-                                                      num_outputs=self.wide_side_node,
-                                                      activation_fn=tf.nn.relu,
-                                                      biases_initializer=None
-                                                      )
-
-        wide_side = tf.reduce_sum(wide_side, 1, name="reduce_sum")
+        #     wide_side = tf.contrib.layers.fully_connected(inputs=self.wide_inputs,
+        #                                                   num_outputs=self.wide_side_node,
+        #                                                   activation_fn=tf.nn.relu,
+        #                                                   biases_initializer=None,
+        #                                                   weights_regularizer=tf.contrib.layers.l1_regularizer(0.1)
+        #                                                   )
+        # wide_side = tf.reduce_sum(wide_side, 1, name="reduce_sum")
         wide_side = tf.reshape(wide_side, [-1, 1])
         w_a_d = tf.concat([self.wide_inputs, self.deep_inputs], axis=1, name="concat")
 
-        for k in range(len(self.deep_side_nodes)):
-            w_a_d = tf.contrib.layers.fully_connected(w_a_d, self.deep_side_nodes[k], activation_fn=tf.nn.relu)
-            w_a_d = tf.layers.dropout(
-                inputs=w_a_d,
-                rate=0.5,
-                name="deep_dropout_%d" % k,
-            )
-        deep_side = tf.contrib.layers.fully_connected(w_a_d, 1,
-                                                      activation_fn=None,
-                                                      biases_initializer=None)
+        with tf.variable_scope("DeepNet"):
+            for k in range(len(self.deep_side_nodes)):
+                w_a_d = tf.contrib.layers.fully_connected(w_a_d, self.deep_side_nodes[k], activation_fn=tf.nn.relu,
+                                                          weights_regularizer=tf.contrib.layers.l2_regularizer(0.1)
+                                                          )
+                w_a_d = tf.layers.dropout(
+                    inputs=w_a_d,
+                    rate=0.5,
+                    name="deep_dropout_%d" % k,
+                )
+            deep_side = tf.contrib.layers.fully_connected(w_a_d, 1,
+                                                          activation_fn=None,
+                                                          biases_initializer=None,
+                                                          weights_regularizer=tf.contrib.layers.l2_regularizer(0.1)
+                                                          )
         deep_side = tf.reshape(deep_side, [-1, 1])
         w_a_d_logit = tf.add(deep_side, wide_side)
         self.w_a_d_logit = tf.add(w_a_d_logit, central_bias, name="wide_with_bias")
-        self.w_a_d_output = tf.nn.softmax(self.w_a_d_logit, dim=-1)
+        self.w_a_d_sig = tf.nn.sigmoid(self.w_a_d_logit)
         # 定义准确率
-        self.predictions = tf.cast(tf.greater(self.w_a_d_output, 0), tf.int64) # 在最终预测的时候，神经网络的输出采用的是经过滑动平均的前向传播计算结果
+        self.predictions = tf.cast(tf.greater_equal(self.w_a_d_logit, 0.5), tf.int64)  # 在最终预测的时候，神经网络的输出采用的是经过滑动平均的前向传播计算结果
         self.correct_prediction = tf.equal(self.predictions, tf.cast(self.Y, tf.int64))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
     def _build_loss(self):
-        loss = tf.nn.sigmoid_cross_entropy_with_logits(
-            labels=self.Y,
-            logits=self.w_a_d_logit,
-            name="loss_function"
-        )
-        loss_mean = tf.reduce_mean(loss)
-        self.total_loss = loss_mean
+        self.total_loss = -tf.reduce_mean(self.Y * tf.log(tf.clip_by_value(self.w_a_d_sig,1e-10,1.0)))
+        # loss = tf.nn.sigmoid_cross_entropy_with_logits(
+        #     labels=self.Y,
+        #     logits=self.w_a_d_logit,
+        #     name="loss_function"
+        # )
+        # loss_mean = tf.reduce_mean(loss)
+        # reg_ds = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, 'DeepNet')
+        # reg_ws = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, 'WideNet')
+        # d_regu_loss = tf.reduce_sum(reg_ds)
+        # w_regu_loss = tf.reduce_sum(reg_ws)
+        # # self.total_loss = loss_mean + d_regu_loss + w_regu_loss
+        # self.total_loss = loss_mean
+
 
     def _create_train_op(self):
         self.global_step = tf.Variable(0, trainable=False)  # 定义存储当前迭代训练轮数的变量
@@ -366,18 +395,26 @@ class WideAndDeep(object):
 
 
         # 定义指数衰减学习率
+        # self.learning_rate = tf.train.exponential_decay(self.learning_rate_base, self.global_step,
+        #                                    2000000 / self.batch_size, self.learning_rate_decay)
         self.learning_rate = tf.train.exponential_decay(self.learning_rate_base, self.global_step,
-                                           2000000 / self.batch_size, self.learning_rate_decay)
+                                                        2000, self.learning_rate_decay)
         # 定义梯度下降操作op，global_step参数可实现自加1运算
-        self.train_step = tf.train.GradientDescentOptimizer(self.learning_rate) \
+        # self.train_step = tf.train.GradientDescentOptimizer(self.learning_rate) \
+        #     .minimize(self.total_loss, global_step=self.global_step)
+        self.train_step = tf.train.AdagradOptimizer(self.learning_rate) \
             .minimize(self.total_loss, global_step=self.global_step)
         # 组合两个操作op
         self.train_op = tf.group(self.train_step, self.variables_averages_op)
 
     def load_data(self,filename = "/home2/data/ttd/zhengquan_test.processed.csv.pkl"):
         df_data = pickle.load(open(filename, "rb"))  # 一个DataFrame
-        if self.features_to_exclude:
-            print("run this")
+        if self.features_to_keep:
+            print("run features_to_keep")
+            print(self.features_to_keep)
+            df_data = df_data[self.features_to_keep]
+        elif self.features_to_exclude:
+            print("run features_to_exclude")
             print(self.features_to_exclude)
             self.features_to_exclude = list(map(str,self.features_to_exclude))
             df_data = df_data.drop(self.features_to_exclude,axis = 1)
@@ -437,35 +474,35 @@ class WideAndDeep(object):
                     continue
                 x_feed_in , y_feed_in = zip(*current_batch_data)
                 _,current_loss,current_accuracy = self.sess.run([self.train_op,self.total_loss,self.accuracy],feed_dict={self.X:x_feed_in,self._Y:y_feed_in})
-                print("idx = ",idx," train_steps = ",train_steps, " current loss = ",current_loss," current accuracy = ",current_accuracy)
+                print(time.strftime("%Y-%m-%d %H:%M:%S ", time.localtime()),"idx = ",idx," train_steps = ",train_steps, " current loss = ",current_loss," current accuracy = ",current_accuracy)
                 train_steps += 1
                 if train_steps % self.eval_freq == 0:
                     self.logger.info('Time to run {} steps : {} s'.format(train_steps,time.time() - start_t))
                     print('Time to run {} steps : {} s'.format(train_steps,time.time() - start_t))
                     start_t = time.time()
-                    eval_acc, eval_auc = self.evaluate(eval_filename) if eval_filename else self.evaluate()
+                    eval_acc, eval_auc, eval_loss = self.evaluate(eval_filename) if eval_filename else self.evaluate()
                     print('Time to run {} steps : {} s'.format(train_steps,time.time() - start_t))
                     start_t = time.time()
-                    print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f" % (epoch, train_steps, eval_auc, eval_acc))
+                    print("epoch = %d, train_steps=%d, auc=%f, acc=%f, loss=%f" % (epoch, train_steps, eval_auc, eval_acc,eval_loss))
                     if eval_auc > history_auc or (eval_auc == history_auc and eval_acc > history_acc) :
-                        self.save_model(save_dir="/home2/data/zhengquan/batch_32_lr_01/",prefix="auc=%.3f"%(eval_auc))
+                        self.save_model(save_dir="/home2/data/zhengquan/batch_32_lr_01_UserId_VideoId/",prefix="auc=%.3f"%(eval_auc))
                         history_auc = eval_auc
                         history_acc = eval_acc
-                        print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f, get better score"%(epoch,train_steps,eval_auc,eval_acc))
-                        self.logger.info("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f"%(epoch,train_steps,eval_auc,eval_acc))
+                        print("epoch = %d, train_steps=%d, auc=%f, acc=%f, get better score"%(epoch,train_steps,eval_auc,eval_acc))
+                        self.logger.info("epoch = %d, train_steps=%d, auc=%.f, acc=%.f"%(epoch,train_steps,eval_auc,eval_acc))
 
-        eval_acc, eval_auc = self.evaluate(eval_filename) if eval_filename else self.evaluate()
+        eval_acc, eval_auc, eval_loss = self.evaluate(eval_filename) if eval_filename else self.evaluate()
         print('Time to run {} steps : {} s'.format(train_steps, time.time() - start_t))
         start_t = time.time()
-        print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f" % (epoch, train_steps, eval_auc, eval_acc))
+        print("epoch = %d, train_steps=%d, auc=%f, acc=%f, loss=%f" % (epoch, train_steps, eval_auc, eval_acc, eval_loss))
         if eval_auc > history_auc or (eval_auc == history_auc and eval_acc > history_acc):
             self.save_model(save_dir="/home2/data/zhengquan/batch_32_lr_01/", prefix="auc=%.3f" % (eval_auc))
             history_auc = eval_auc
             history_acc = eval_acc
-            print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f, get better score" % (
-            epoch, train_steps, eval_auc, eval_acc))
+            print("epoch = %d, train_steps=%d, auc=%f, acc=%f, loss=%f, get better score" % (
+            epoch, train_steps, eval_auc, eval_acc, eval_loss))
             self.logger.info(
-                "epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f" % (epoch, train_steps, eval_auc, eval_acc))
+                "epoch = %d, train_steps=%d, auc=%f, acc=%f， loss=%f" % (epoch, train_steps, eval_auc, eval_acc, eval_loss))
 
 
     def evaluate(self,filename=""):
@@ -478,20 +515,31 @@ class WideAndDeep(object):
         acc_s = []
         logit_s = []
         label_s = []
+        loss_s = []
 
         for idx, current_batch_data in enumerate(batch_data):
             if current_batch_data.shape[0] != self.batch_size:
                 continue
             x_feed_in, y_feed_in = zip(*current_batch_data)
-            acc,logit = self.sess.run([self.accuracy,self.w_a_d_logit],feed_dict={self.X:x_feed_in,self._Y:y_feed_in})
-            print("in eval acc = ",acc)
+            acc,logit,loss = self.sess.run([self.accuracy,self.w_a_d_logit,self.total_loss],feed_dict={self.X:x_feed_in,self._Y:y_feed_in})
+            print("in eval acc = ",acc," loss = ",loss)
             acc_s.append(acc)
-            logit_s.extend(list(logit))
+            loss_s.append(loss)
+            logit_s.extend(list(logit.reshape(-1)))
             label_s.extend(list(y_feed_in))
+            assert len(logit_s) == len(label_s)
 
+
+
+        # print("label_s[:10]=",label_s[:10])
+        print("logit_s[:100]=",logit_s[:100])
+        # import pdb
+        # pdb.set_trace()
         average_acc = np.mean(acc_s)
-        auc = compute_auc(label_s,logit_s)
-        return average_acc , auc
+        average_loss = np.mean(loss_s)
+        # auc = compute_auc(label_s,logit_s)
+        auc = sklearn.metrics.roc_auc_score(label_s, logit_s)
+        return average_acc , auc , average_loss
 
     def test(self,filename=""):
         if filename:
@@ -636,21 +684,24 @@ class WideAndDeep(object):
 if __name__ == "__main__":
     tag2value = json.load(open("original/tag2value.json", "r", encoding="utf-8"))
     tag2valueOneline = json.load(open('original/tag2valueOneline.json', "r", encoding="utf-8"))
-    A = WideAndDeep(batch_size=32,eval_freq=5000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
+    A = WideAndDeep(batch_size=10,eval_freq=1000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
                     train_epoch_num=1,
                     train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",
                     eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl",
                     test_filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl",
                     # features_to_exclude=features_to_exclude,
-                    features_to_exclude=[]
+                    features_to_exclude=[],
+                    features_to_keep=['2','7','label']
                     )
 
-    A.train(train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
+    A.train(train_filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
+    #A.train(train_filename="/home2/data/ttd/zhengquan_test.processed.csv.pkl",eval_filename="/home2/data/ttd/zhengquan_test.processed.csv.pkl")
     print("begin test")
-    test_acc , test_auc = A.test(filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
+    # test_acc , test_auc = A.test(filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
+    #test_acc , test_auc = A.test(filename="/home2/data/ttd/zhengquan_test.processed.csv.pkl")
 
     # A.restore_model(save_dir="/home2/data/zhengquan/WAD/",prefix="auc=0.693")
     # test_acc , test_auc = A.test(filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
     #
-    print("test_acc = ",test_acc)
+    # print("test_acc = ",test_acc)
     # print("test_auc = ",test_auc)

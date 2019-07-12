@@ -1,31 +1,8 @@
-Beta0	1
 UserId	2
-Prov	3
-IdentityType	4
-
-VideoId	7
-SourceType	11
-Tag	13
-
-MatchLtNagTag	18
-MatchStPosTag	19
-
 UserHistoryPlayVideos	20
 UserLongTermTags	22
 UserCreateTime	23
 UserGender	25
-
-
-CurrentPage	29
-RefreshFlag	30
-ReqShowType	33
-
-Rank	24
-VideoFeedCtr	34
-Zipper	31
-Cate7Tag	32
-
-
 UserId-AuthorId	101
 UserId-Tag	102
 UserId-HashTag	103
@@ -55,31 +32,7 @@ UserPreShareTags	162
 UserPreShareAuthorId	165
 UserPreCommentTags	166
 UserPreCommentAuthorId	169
-
-Prov-AuthorId	200
-Prov-Tag	201
-Prov-HashTag	202
-Prov-WidthHeightRate	203
-Prov-RefreshFlag	206
-Prov-VideoId	207
-Prov-ClusterId	208
-Prov-BgMusicSongId	209
-City-AuthorId	210
-AndroidId-AuthorId	211
-AndroidId-Tag	212
-AppVer-Tag	213
-AppVer-HashTag	214
-AppVer-BlackRate	215
-AppVer-AppId	216
-AppVer-VideoGenderCount	217
-Prov-Zipper	218
-
 UserGender-Cate7Tag	219
-MobileBrand-Tag	220
-MobileBrand-Cate3Tag	221
-MobileBrand-NewTag	222
-MobileCPU-Tag	223
-MobileCPU-Cate3Tag	224
 UserSession1ClickTag	270
 UserSession2ClickTag	271
 UserSession3ClickTag	272
@@ -101,19 +54,3 @@ UserSession2WatchTag-Cate7Tag	405
 UserSession3WatchTag-Tag	406
 UserSession3WatchTag-NewTag	407
 UserSession3WatchTag-Cate7Tag	408
-VideoLongitude  35
-VideoLatitude  36
-VideoProv  37
-VideoLanguage  38
-VideoRecallKeys  39
-VideoMergeVideoType  40
-VideoRegionLangMatchType  41
-
-MachineTag  409
-Clustertag  410
-CommentToTalNum  411
-CommentPosNum 412
-CommentPosValue 413
-CommentNegNum 414
-CommentNegValue 415
-EmojiNum 416

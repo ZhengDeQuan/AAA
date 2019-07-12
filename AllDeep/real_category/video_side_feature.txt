@@ -1,0 +1,14 @@
+VideoId	7
+SourceType	11
+Tag	13
+Rank	24
+VideoFeedCtr	34
+Zipper	31
+Cate7Tag	32
+VideoLongitude  35
+VideoLatitude  36
+VideoProv  37
+VideoLanguage  38
+VideoRecallKeys  39
+VideoMergeVideoType  40
+VideoRegionLangMatchType  41

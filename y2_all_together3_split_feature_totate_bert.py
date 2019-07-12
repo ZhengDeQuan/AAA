@@ -350,9 +350,13 @@ class WideAndDeep(object):
                     sibling_mappings[sibling.tag_name] = one_sparse
                     sibling_tensors.append(sibling.embedding_res)
 
-            mappings = OrderedDict
+            mappings = OrderedDict()
             tensors = []
             for key in wide_mappings:
+                print("key = ",key)
+                print("type(key) = ",type(key))
+                # import pdb
+                # pdb.set_trace()
                 mappings[key] = wide_mappings[key]
             for key in deep_mappings:
                 mappings[key] = deep_mappings[key]
@@ -445,14 +449,14 @@ class WideAndDeep(object):
         self.learning_rate = tf.train.exponential_decay(self.learning_rate_base, self.global_step,
                                                         2000000 / self.batch_size, self.learning_rate_decay)
         # 定义梯度下降操作op，global_step参数可实现自加1运算
-        self.train_step = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.total_loss, global_step=self.global_step)
+        #self.train_step = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.total_loss, global_step=self.global_step)
         '''
         梯度爆炸要clip
         '''
-        # self.train_opt = tf.train.GradientDescentOptimizer(self.learning_rate)
-        # gradients = tf.gradients(self.total_loss, trainable_vars)
-        # clipped_gradients, norm = tf.clip_by_global_norm(gradients, 10)
-        # self.train_step = self.train_opt.apply_gradients(zip(clipped_gradients, trainable_vars))
+        self.train_opt = tf.train.GradientDescentOptimizer(self.learning_rate)
+        gradients = tf.gradients(self.total_loss, trainable_vars)
+        clipped_gradients, norm = tf.clip_by_global_norm(gradients, 10)
+        self.train_step = self.train_opt.apply_gradients(zip(clipped_gradients, trainable_vars))
 
         # 组合两个操作op
         self.train_op = tf.group(self.train_step, self.variables_averages_op)
@@ -526,7 +530,7 @@ class WideAndDeep(object):
                     start_t = time.time()
                     print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f" % (epoch, train_steps, eval_auc, eval_acc))
                     if eval_auc > history_auc or (eval_auc == history_auc and eval_acc > history_acc) :
-                        self.save_model(save_dir="/home2/data/zhengquan/WAD_filterEmbedding/",prefix="auc=%.3f"%(eval_auc))
+                        self.save_model(save_dir="/home2/data/zhengquan/WAD_filterEmbedding_totate_bert/",prefix="auc=%.3f"%(eval_auc))
                         history_auc = eval_auc
                         history_acc = eval_acc
                         print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f, get better score"%(epoch,train_steps,eval_auc,eval_acc))

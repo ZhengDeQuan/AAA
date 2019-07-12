@@ -48,9 +48,6 @@ def compute_auc(labels, pred):
     auc = auc / (pos * neg)  # 除以总的组合数
     return auc
 
-features_to_exclude = [
-409,410,411,412,413,414,415,416
-]
 
 class Tag(object):
     def __init__(self,
@@ -112,17 +109,16 @@ class WideAndDeep(object):
                  tag2valueOneline = None,
                  custom_tags = [],
                  wide_side_node=100,
-                 deep_side_nodes=[700,100],
-                 # deep_side_nodes=[1024,512,256],
+                 # deep_side_nodes=[700,100],
+                 deep_side_nodes=[1024,512,256],
                  eval_freq = 1000,#每隔1000个step，evaluate一次
                  moving_average_decay = 0.99,# 滑动平均的衰减系数
-                 learning_rate_base = 0.1,# 基学习率
+                 learning_rate_base = 0.8,# 基学习率
                  learning_rate_decay = 0.99,# 学习率的衰减率
                  total_example_num = 2000000,
                  train_filename = "",
                  eval_filename = "",
                  test_filename = "",
-                 features_to_exclude = [],
                  args=None
                  ):
 
@@ -149,8 +145,6 @@ class WideAndDeep(object):
         self.train_filename = train_filename
         self.eval_filename = eval_filename
         self.test_filename = test_filename
-
-        self.features_to_exclude = features_to_exclude
 
         start_t = time.time()
         self.sess = tf.Session()
@@ -376,11 +370,6 @@ class WideAndDeep(object):
 
     def load_data(self,filename = "/home2/data/ttd/zhengquan_test.processed.csv.pkl"):
         df_data = pickle.load(open(filename, "rb"))  # 一个DataFrame
-        if self.features_to_exclude:
-            print("run this")
-            print(self.features_to_exclude)
-            self.features_to_exclude = list(map(str,self.features_to_exclude))
-            df_data = df_data.drop(self.features_to_exclude,axis = 1)
         df_data = df_data.dropna(how="all", axis=0)  # 0 对行进行操作，how='any'只要有一个NA就删除这一行，how='all'必须全部是NA才能删除这一行
         # 不能用any过滤，否则过滤完了，1000个只剩3个。
         df_data['label'] = (df_data['label']).astype(int)
@@ -448,7 +437,7 @@ class WideAndDeep(object):
                     start_t = time.time()
                     print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f" % (epoch, train_steps, eval_auc, eval_acc))
                     if eval_auc > history_auc or (eval_auc == history_auc and eval_acc > history_acc) :
-                        self.save_model(save_dir="/home2/data/zhengquan/batch_32_lr_01/",prefix="auc=%.3f"%(eval_auc))
+                        self.save_model(save_dir="/home2/data/zhengquan/WAD_1024_512_256_small_data/",prefix="auc=%.3f"%(eval_auc))
                         history_auc = eval_auc
                         history_acc = eval_acc
                         print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f, get better score"%(epoch,train_steps,eval_auc,eval_acc))
@@ -459,7 +448,7 @@ class WideAndDeep(object):
         start_t = time.time()
         print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f" % (epoch, train_steps, eval_auc, eval_acc))
         if eval_auc > history_auc or (eval_auc == history_auc and eval_acc > history_acc):
-            self.save_model(save_dir="/home2/data/zhengquan/batch_32_lr_01/", prefix="auc=%.3f" % (eval_auc))
+            self.save_model(save_dir="/home2/data/zhengquan/WAD/", prefix="auc=%.3f" % (eval_auc))
             history_auc = eval_auc
             history_acc = eval_acc
             print("epoch = %d, train_steps=%d, auc=%.3f, acc=%.3f, get better score" % (
@@ -634,23 +623,20 @@ class WideAndDeep(object):
 
 
 if __name__ == "__main__":
-    tag2value = json.load(open("original/tag2value.json", "r", encoding="utf-8"))
-    tag2valueOneline = json.load(open('original/tag2valueOneline.json', "r", encoding="utf-8"))
-    A = WideAndDeep(batch_size=32,eval_freq=5000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
+    tag2value = json.load(open("small_tag2value.json", "r", encoding="utf-8"))
+    tag2valueOneline = json.load(open('small_tag2valueOneline.json', "r", encoding="utf-8"))
+    A = WideAndDeep(batch_size=20,eval_freq=5000,feature_num=93,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
                     train_epoch_num=1,
                     train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",
                     eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl",
-                    test_filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl",
-                    # features_to_exclude=features_to_exclude,
-                    features_to_exclude=[]
-                    )
+                    test_filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
 
-    A.train(train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
-    print("begin test")
-    test_acc , test_auc = A.test(filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
+    A.train(train_filename="/home2/data/ttd/train_ins.processed.csv.pkl",eval_filename="/home2/data/ttd/eval_ins.processed.csv.pkl")
+    # print("begin test")
+    # test_acc , test_auc = A.test(filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
 
     # A.restore_model(save_dir="/home2/data/zhengquan/WAD/",prefix="auc=0.693")
     # test_acc , test_auc = A.test(filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl")
     #
-    print("test_acc = ",test_acc)
+    # print("test_acc = ",test_acc)
     # print("test_auc = ",test_auc)

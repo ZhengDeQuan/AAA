@@ -7,7 +7,6 @@ from tqdm import tqdm
 # print(column_data)
 # import pdb
 # pdb.set_trace()
-from collections import OrderedDict
 
 
 
@@ -32,8 +31,7 @@ def process_data(file_name,Outer_List):
                     Dict[key]=[]
                 Dict[key].append(value)
             sorted_tuple = sorted(Dict.items(),key = lambda z:z[0])
-
-            Dict = dict(sorted_tuple)#这个dict是无序的()
+            Dict = dict(sorted_tuple)
             for key in Dict:
                 Dict[key] = '|'.join(Dict[key])
             Dict['label'] = label
@@ -44,11 +42,11 @@ def process_data(file_name,Outer_List):
             values = ' '.join(values)
             new_lines.append(values)
 
-    # with open(file_name+".processed","w",encoding="utf-8") as fout:
-    #     for line in new_lines:
-    #         fout.write(line+"\n")
-    # tocsv_data = pd.DataFrame(tocsv_data)
-    # pickle.dump(tocsv_data,open(filename+".processed.csv.pkl","wb"))
+    with open(file_name+".processed","w",encoding="utf-8") as fout:
+        for line in new_lines:
+            fout.write(line+"\n")
+    tocsv_data = pd.DataFrame(tocsv_data)
+    pickle.dump(tocsv_data,open(filename+".processed.csv.pkl","wb"))
     # tocsv_data.to_csv(filename+".processed.csv",sep=" ") #要是能知道详细的参数变成csv文件就好了
 
 
@@ -89,7 +87,7 @@ def cal_valueKindNum_for_each_tag_each_line(file_name,Outer_Dict):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_files',default=['/home2/data/ttd/train_ins_add','/home2/data/ttd/eval_ins_add'],nargs="+")
+    parser.add_argument('--input_files',default=['/home2/data/ttd/train_ins','/home2/data/ttd/eval_ins'],nargs="+")
     #args = parser.parse_args(['--input_files','/home2/data/ttd/zhengquan_test'])
     args = parser.parse_args()
     print("args = ",args)
@@ -107,13 +105,13 @@ if __name__ == "__main__":
     Outer_Dict_tag2values = dict(sorted_tuple)
     for key in Outer_Dict_tag2values:
         Outer_Dict_tag2values[key] = list(Outer_Dict_tag2values[key])
-    json.dump(Outer_Dict_tag2values,open('tag2value.json',"w",encoding="utf-8"),ensure_ascii=False)
-    pickle.dump(Outer_Dict_tag2values , open("tag2value.pkl","wb"))
+    json.dump(Outer_Dict_tag2values,open('small_tag2value.json',"w",encoding="utf-8"),ensure_ascii=False)
+    pickle.dump(Outer_Dict_tag2values , open("small_tag2value.pkl","wb"))
 
     sorted_tuple = sorted(Outer_Dict_tag2valuesOneline.items(), key=lambda z: z[0])
     Outer_Dict_tag2valuesOneline = dict(sorted_tuple)
-    json.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.json',"w",encoding="utf-8"),ensure_ascii=False)
-    pickle.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.pkl',"wb"))
+    json.dump(Outer_Dict_tag2valuesOneline,open('small_tag2valueOneline.json',"w",encoding="utf-8"),ensure_ascii=False)
+    pickle.dump(Outer_Dict_tag2valuesOneline,open('small_tag2valueOneline.pkl',"wb"))
 
     # data = pickle.load(open("eval_ins_add.processed.csv.pkl", "rb"))
     # tmp = data.sample(frac=1).reset_index(drop=True)
