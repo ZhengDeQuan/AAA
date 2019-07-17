@@ -3,6 +3,7 @@ import json
 import pickle
 import argparse
 from tqdm import tqdm
+import os
 # column_data= pd.read_csv('All_Deep/feature_column_data.txt')
 # print(column_data)
 # import pdb
@@ -20,7 +21,7 @@ def process_data(file_name,Outer_List):
     tocsv_data = []
     with open(file_name,"r",encoding="utf-8") as fin:
         lines = fin.readlines()
-        for line in tqdm( lines):
+        for line in tqdm(lines):
             Dict = {}
             #one example
             line = line.strip().split()
@@ -48,7 +49,8 @@ def process_data(file_name,Outer_List):
     #     for line in new_lines:
     #         fout.write(line+"\n")
     # tocsv_data = pd.DataFrame(tocsv_data)
-    # pickle.dump(tocsv_data,open(filename+".processed.csv.pkl","wb"))
+    if not os.path.exists(filename+".processed.csv.pkl"):
+        pickle.dump(tocsv_data,open(filename+".processed.csv.pkl","wb"))
     # tocsv_data.to_csv(filename+".processed.csv",sep=" ") #要是能知道详细的参数变成csv文件就好了
 
 
@@ -101,7 +103,7 @@ if __name__ == "__main__":
         print("filename = ",filename)
         process_data(filename,Outer_List)
         get_values_for_each_tag(filename,Outer_Dict_tag2values)
-        cal_valueKindNum_for_each_tag_each_line(filename,Outer_Dict_tag2valuesOneline)
+        #cal_valueKindNum_for_each_tag_each_line(filename,Outer_Dict_tag2valuesOneline)
 
     sorted_tuple = sorted(Outer_Dict_tag2values.items(), key=lambda z: z[0])
     Outer_Dict_tag2values = dict(sorted_tuple)
@@ -110,10 +112,10 @@ if __name__ == "__main__":
     json.dump(Outer_Dict_tag2values,open('tag2value.json',"w",encoding="utf-8"),ensure_ascii=False)
     pickle.dump(Outer_Dict_tag2values , open("tag2value.pkl","wb"))
 
-    sorted_tuple = sorted(Outer_Dict_tag2valuesOneline.items(), key=lambda z: z[0])
-    Outer_Dict_tag2valuesOneline = dict(sorted_tuple)
-    json.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.json',"w",encoding="utf-8"),ensure_ascii=False)
-    pickle.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.pkl',"wb"))
+    # sorted_tuple = sorted(Outer_Dict_tag2valuesOneline.items(), key=lambda z: z[0])
+    # Outer_Dict_tag2valuesOneline = dict(sorted_tuple)
+    # json.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.json',"w",encoding="utf-8"),ensure_ascii=False)
+    # pickle.dump(Outer_Dict_tag2valuesOneline,open('tag2valueOneline.pkl',"wb"))
 
     # data = pickle.load(open("eval_ins_add.processed.csv.pkl", "rb"))
     # tmp = data.sample(frac=1).reset_index(drop=True)

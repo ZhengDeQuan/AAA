@@ -10,6 +10,7 @@ from collections import OrderedDict
 import sklearn
 from sklearn import metrics
 import pdb
+import argparse
 
 def compute_auc(labels, pred):
     if len(labels) != len(pred):
@@ -1108,23 +1109,24 @@ class WideAndDeep(object):
 
 
 if __name__ == "__main__":
-    tag2value = json.load(open("small_tag2value.json", "r", encoding="utf-8"))
-    tag2valueOneline = json.load(open('small_tag2valueOneline.json', "r", encoding="utf-8"))
+    tag2value = json.load(open("tag2value.json", "r", encoding="utf-8"))
+    tag2valueOneline = json.load(open('tag2valueOneline.json', "r", encoding="utf-8"))
     A = WideAndDeep(batch_size=64,eval_freq=1000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
                     train_epoch_num=2,
                     train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",
                     eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl",
                     test_filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl",
                     # features_to_exclude=features_to_exclude,
-                    features_to_exclude=[],
+                    features_to_exclude=['409','410','412','413','414','415','416'],
                     features_to_keep=[],
                     feature_num=100,
                     learning_rate_base=1e-3,
                     learning_rate_decay_step=3000,
-                    confidence_rates=[0.9,0.9]
+                    confidence_rates=[],
+                    # confidence_rates=[0.9,0.9]
                     )
 
-    A.train(train_filename="/home2/data/ttd/train_ins.processed.csv.pkl",eval_filename="/home2/data/ttd/eval_ins.processed.csv.pkl")
+    A.train(train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
     #A.train(train_filename="/home2/data/ttd/zhengquan_test.processed.csv.pkl",eval_filename="/home2/data/ttd/zhengquan_test.processed.csv.pkl")
     print("begin test")
     # test_acc , test_auc = A.test(filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")

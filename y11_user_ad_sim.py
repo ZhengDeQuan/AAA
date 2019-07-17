@@ -112,7 +112,6 @@ class WideAndDeep(object):
                  train_epoch_num = 1,
                  train_steps = 1000,
                  tag2value = None,
-                 tag2valueOneline = None,
                  custom_tags = [],
                  wide_side_node=100,
                  deep_side_nodes=[700,100],
@@ -138,14 +137,12 @@ class WideAndDeep(object):
                  ):
 
         assert tag2value is not None, "tag2value should be a dict, but found None"
-        assert tag2valueOneline is not None, "tag2valueOneline should be a dict, but found None"
         self.batch_size = batch_size
         self.feature_num = feature_num
         self.train_epoch_num = train_epoch_num
         self.train_steps = train_steps
         self.args = args
         self.logger = logging.getLogger("brc")
-        self.tag2valueOneline = tag2valueOneline
         self.tag2value = tag2value
         self.custom_tags = custom_tags
         self.wide_side_node = wide_side_node
@@ -172,12 +169,9 @@ class WideAndDeep(object):
 
         if len(self.features_to_keep) > 0:
             self.tag2value = OrderedDict()
-            self.tag2valueOneline = OrderedDict()
             for key in self.features_to_keep:
                 if key in tag2value:
                     self.tag2value[key] = tag2value[key]
-                if key in tag2valueOneline:
-                    self.tag2valueOneline[key] = tag2valueOneline[key]
 
         start_t = time.time()
         self.sess = tf.Session()
@@ -197,7 +191,6 @@ class WideAndDeep(object):
         self.Y = tf.expand_dims(self._Y,axis=-1)
 
     def _setup_mappings(self):
-        tag2valueOneline = self.tag2valueOneline
         tag2value = sorted(self.tag2value.items(),key = lambda x: x[0])
         tag2value = dict(tag2value)
         # print("tag2value.keys() = ",tag2value.keys())
@@ -213,7 +206,6 @@ class WideAndDeep(object):
             print(" in setup embedding key = ",key)
             tag = Tag(
                 featureNum=len(tag2value[key]),
-                featureNumOneline=tag2valueOneline[key],
                 tag_name=key
             )
             tag.cal_(tag2value[key])
@@ -407,7 +399,6 @@ class WideAndDeep(object):
         self.deep_inputs = tf.reshape(deep_inputs, [-1, self.deep_side_dimension_size])
 
     def _setup_and_realize_mapping(self):
-        tag2valueOneline = self.tag2valueOneline
         tag2value = sorted(self.tag2value.items(), key=lambda x: x[0])
         tag2value = dict(tag2value)
         self.tag2value = tag2value
@@ -421,7 +412,6 @@ class WideAndDeep(object):
             print("key  = ",key)
             tag = Tag(
                 featureNum=len(tag2value[key]),
-                featureNumOneline=tag2valueOneline[key],
                 tag_name=key
             )
             tag.cal_(tag2value[key])
@@ -449,7 +439,6 @@ class WideAndDeep(object):
         self.deep_inputs = tf.feature_column.input_layer(mappings, tensor_s)
 
     def _setup_and_realize_mapping2(self):
-        tag2valueOneline = self.tag2valueOneline
         tag2value = sorted(self.tag2value.items(), key=lambda x: x[0])
         tag2value = dict(tag2value)
         self.tag2value = tag2value
@@ -471,7 +460,6 @@ class WideAndDeep(object):
             Keys.append(key)
             tag = Tag(
                 featureNum=len(tag2value[key]),
-                featureNumOneline=tag2valueOneline[key],
                 tag_name=key
             )
             tag.cal_(tag2value[key])
@@ -577,7 +565,6 @@ class WideAndDeep(object):
             Keys.append(key)
             tag = Tag(
                 featureNum=len(tag2value[key]),
-                featureNumOneline=tag2valueOneline[key],
                 tag_name=key
             )
             tag.cal_(tag2value[key])
@@ -746,10 +733,10 @@ class WideAndDeep(object):
                     name="deep_dropout_%d" % k,
                 )
 
-        user_side = tf.contrib.layers.fully_connected(user_side,self.video_side_nodes[-1],
-                                          activation_fn=None,
-                                          weights_regularizer=tf.contrib.layers.l2_regularizer(0.1),
-                                          biases_initializer=None)
+        # user_side = tf.contrib.layers.fully_connected(user_side,self.video_side_nodes[-1],
+        #                                   activation_fn=None,
+        #                                   weights_regularizer=tf.contrib.layers.l2_regularizer(0.1),
+        #                                   biases_initializer=None)
         self.sim_user_video = tf.reduce_sum( tf.multiply( user_side, video_side ), 1 )
 
     def _build_graph(self):
@@ -1314,21 +1301,22 @@ class WideAndDeep(object):
 
 
 if __name__ == "__main__":
-    tag2value = json.load(open("small_tag2value.json", "r", encoding="utf-8"))
-    tag2valueOneline = json.load(open('small_tag2valueOneline.json', "r", encoding="utf-8"))
+    tag2value = json.load(open("tag2value.json", "r", encoding="utf-8"))
+    # tag2valueOneline = json.load(open('tag2valueOneline.json', "r", encoding="utf-8"))
     user_features = json.load(open("AllDeep/user_side_feature.txt.json","r",encoding="utf-8"))
     video_features = json.load(open("AllDeep/video_side_feature.txt.json","r",encoding="utf-8"))
     context_features = json.load(open("AllDeep/context_feature.txt.json","r",encoding="utf-8"))
     print("user_features = ",user_features)
     print("video_features = ",video_features)
     print("context_features = ",context_features)
-    A = WideAndDeep(batch_size=64,eval_freq=1000,tag2value=tag2value,tag2valueOneline=tag2valueOneline,custom_tags = [],
+    A = WideAndDeep(batch_size=64,eval_freq=1000,tag2value=tag2value,custom_tags = [],
                     train_epoch_num=2,
                     train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",
                     eval_filename="/home2/data/ttd/sub_eval_ins_add.processed.csv.pkl",
                     test_filename="/home2/data/ttd/sub_test_ins_add.processed.csv.pkl",
                     # features_to_exclude=features_to_exclude,
-                    features_to_exclude=[],
+                    # features_to_exclude=[],
+                    features_to_exclude=['409', '410', '412', '413', '414', '415', '416'],
                     features_to_keep=[],
                     feature_num=100,
                     learning_rate_base=1e-3,
@@ -1344,7 +1332,7 @@ if __name__ == "__main__":
                     sim_loss_a = 0.2 #也可能是5
                     )
 
-    A.train(train_filename="/home2/data/ttd/train_ins.processed.csv.pkl",eval_filename="/home2/data/ttd/eval_ins.processed.csv.pkl")
+    A.train(train_filename="/home2/data/ttd/train_ins_add.processed.csv.pkl",eval_filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
     #A.train(train_filename="/home2/data/ttd/zhengquan_test.processed.csv.pkl",eval_filename="/home2/data/ttd/zhengquan_test.processed.csv.pkl")
     print("begin test")
     # test_acc , test_auc = A.test(filename="/home2/data/ttd/eval_ins_add.processed.csv.pkl")
